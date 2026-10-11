@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a2129; --line:#2b3540; --fg:#e8edf2; --dim:#8b98a5; --acc:#4cc2ff; --ok:#3ecf8e; --bad:#ff6b6b; --warn:#ffb84d; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f5f7fa; --card:#fff; --line:#d9e0e7; --fg:#18222c; --dim:#5d6b79; --acc:#0a7bc4; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 system-ui,sans-serif; display:flex; flex-direction:column; height:100dvh; }
+  header { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  header b { letter-spacing:.12em; color:var(--acc); }
+  #stat { font-size:12px; color:var(--dim); }
+  nav { display:flex; overflow-x:auto; border-bottom:1px solid var(--line); }
+  nav button { flex:1; min-width:84px; padding:10px 6px; background:none; border:0; color:var(--dim); font:inherit; font-size:14px; border-bottom:2px solid transparent; }
+  nav button.on { color:var(--fg); border-color:var(--acc); }
+  main { flex:1; overflow-y:auto; padding:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .me { border-left:3px solid var(--acc); } .bot { border-left:3px solid var(--ok); }
+  .dim { color:var(--dim); font-size:13px; } .pre { white-space:pre-wrap; word-break:break-word; }
+  .pill { font-size:12px; padding:1px 8px; border-radius:99px; border:1px solid var(--line); margin-left:6px; }
+  .done,.executed { color:var(--ok); } .failed,.denied { color:var(--bad); } .running,.waiting_approval,.pending { color:var(--warn); }
+  button.act { padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; margin:4px 6px 0 0; }
+  button.go { background:var(--ok); color:#06130c; border-color:var(--ok); } button.no { background:var(--bad); color:#210606; border-color:var(--bad); }
+  form { display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); }
+  textarea, input { flex:1; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; }
+  textarea { resize:none; height:46px; }
+  form button { padding:0 18px; border-radius:10px; border:0; background:var(--acc); color:#04141f; font-weight:600; font:inherit; }
+  a { color:var(--acc); }
+</style>
+</head>
+<body>
+<header><b>JARVIS</b><span id="stat">...</span></header>
+<nav id="nav"></nav>
+<main id="main"></main>
+<form id="form"><textarea id="box" placeholder="JARVIS se kuch bhi kaho (Hinglish/English)..." enterkeyhint="send"></textarea><button type="submit">Bhejo</button></form>
+<script>
+"use strict";
+const qs = new URLSearchParams(location.hash.slice(1));
+if (qs.get("token")) { try { localStorage.setItem("jt", qs.get("token")); } catch (e) {} history.replaceState(null, "", location.pathname); }
+let TOKEN = ""; try { TOKEN = localStorage.getItem("jt") || ""; } catch (e) {}
+const TABS = ["Chat","Tasks","Approvals","Memory","Clients","Files"];
+let tab = "Chat", watching = null, chat = [];
+
+async function api(path, opts = {}) {
+  const r = await fetch("/api/" + path, { ...opts, headers: { "X-Jarvis-Token": TOKEN, "Content-Type": "application/json" } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.status);
+  return data;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+function card(cls, ...kids) { const c = el("div", "card " + (cls || "")); kids.forEach(k => c.append(k)); return c; }
+function btn(label, cls, fn) { const b = el("button", "act " + (cls || ""), label); b.onclick = fn; return b; }
+
+function drawNav() {
+  const nav = document.getElementById("nav"); nav.replaceChildren();
+  TABS.forEach(t => { const b = el("button", t === tab ? "on" : "", t); b.onclick = () => { tab = t; drawNav(); render(); }; nav.append(b); });
+}
+async function status() {
+  try {
+    const s = await api("status");
+    document.getElementById("stat").textContent = (s.has_api_key ? "key OK" : "NO API KEY") + " | tokens " + s.tokens_today + "/" + s.token_limit + (s.busy ? " | busy" : "");
+  } catch (e) { document.getElementById("stat").textContent = "link galat? (token)"; }
+}
+async function render() {
+  const m = document.getElementById("main"); m.replaceChildren();
+  try {
+    if (tab === "Chat") {
+      if (!chat.length) m.append(card("", el("div", "pre", "Namaste! Example: 'JARVIS, mere project ki progress bata' ya 'potential video-editing clients research kar'.")));
+      chat.forEach(c => m.append(card(c.who === "me" ? "me" : "bot", el("div", "pre", c.text))));
+      m.scrollTop = m.scrollHeight;
+    } else if (tab === "Tasks") {
+      for (const t of await api("tasks")) {
+        const head = el("div", "", "#" + t.id + " " + t.title); const p = el("span", "pill " + t.status, t.status); head.append(p);
+        const c = card("", head); c.append(btn("Details", "", async () => { const d = await api("tasks/" + t.id); alert(d.events.map(e => e.kind + ": " + e.text).join("\n\n").slice(0, 3000)); })); m.append(c);
+      }
+    } else if (tab === "Approvals") {
+      const list = await api("approvals"); if (!list.length) m.append(card("", el("div", "dim", "Koi approval request nahi.")));
+      list.forEach(a => {
+        const c = card("", el("div", "", "#" + a.id + " " + a.summary), el("div", "dim", a.tool + " | " + a.status));
+        if (a.result) c.append(el("div", "dim pre", a.result.slice(0, 300)));
+        if (a.status === "pending") {
+          c.append(btn("Approve", "go", async () => { await api("approvals/" + a.id, { method: "POST", body: JSON.stringify({ approve: true }) }); render(); }));
+          c.append(btn("Deny", "no", async () => { await api("approvals/" + a.id, { method: "POST", body: JSON.stringify({ approve: false }) }); render(); }));
+        }
+        m.append(c);
+      });
+    } else if (tab === "Memory") {
+      const mem = await api("memory"); if (!mem.length) m.append(card("", el("div", "dim", "Memory khaali hai.")));
+      mem.forEach(x => { const c = card("", el("b", "", x.key), el("div", "pre", x.value)); c.append(btn("Bhulao", "no", async () => { await api("memory/" + encodeURIComponent(x.key), { method: "DELETE" }); render(); })); m.append(c); });
+      m.append(btn("Poori chat history clear karo", "", async () => { if (confirm("Conversation history delete?")) { await api("conversation/clear", { method: "POST", body: "{}" }); chat = []; } }));
+    } else if (tab === "Clients") {
+      const list = await api("prospects"); if (!list.length) m.append(card("", el("div", "dim", "Abhi koi prospect nahi.")));
+      list.forEach(p => {
+        const c = card("", el("b", "", p.name), el("span", "pill", p.status), el("div", "dim", [p.niche, p.website, "score " + (p.score ?? "-")].filter(Boolean).join(" | ")),
+          el("div", "dim", "contact: " + (p.public_contact || "-") + (p.contact_source ? "  (source: " + p.contact_source + ")" : "")),
+          el("div", "dim", "follow-up: " + (p.next_followup || "-")));
+        ["contacted", "replied", "won", "lost"].forEach(s => c.append(btn(s, "", async () => { await api("prospects/" + p.id + "/status", { method: "POST", body: JSON.stringify({ status: s }) }); render(); })));
+        m.append(c);
+      });
+    } else if (tab === "Files") {
+      const files = await api("outputs"); if (!files.length) m.append(card("", el("div", "dim", "Output folder khaali hai.")));
+      files.forEach(f => { const a = el("a", "", f); a.href = "/files/" + f.split("/").map(encodeURIComponent).join("/") + "?t=" + encodeURIComponent(TOKEN); a.target = "_blank"; m.append(card("", a)); });
+    }
+  } catch (e) { m.append(card("", el("div", "failed", "Error: " + e.message))); }
+}
+async function watch(id) {
+  watching = id;
+  while (watching === id) {
+    const t = await api("tasks/" + id).catch(() => null);
+    if (t && t.status !== "running") {
+      watching = null;
+      chat.push({ who: "bot", text: (t.reply || "(no reply)") + (t.status === "waiting_approval" ? "\n\n[Approvals tab me confirm karo]" : "") });
+      if (tab === "Chat") render(); status(); return;
+    }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
+document.getElementById("form").onsubmit = async e => {
+  e.preventDefault(); const box = document.getElementById("box"); const text = box.value.trim(); if (!text) return;
+  box.value = ""; chat.push({ who: "me", text }); tab = "Chat"; drawNav(); render();
+  try { const r = await api("chat", { method: "POST", body: JSON.stringify({ text }) }); chat.push({ who: "bot", text: "(kaam chal raha hai...)" }); render(); const idx = chat.length - 1; await watch(r.task_id); chat.splice(idx, 1); render(); }
+  catch (err) { chat.push({ who: "bot", text: "Error: " + err.message }); render(); }
+};
+drawNav(); render(); status(); setInterval(status, 15000);
+</script>
+</body>
+</html>
