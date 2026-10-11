@@ -11,3 +11,4 @@
 - Skills/prompts were written for Claude; Gemini may follow the rules (approvals, no fake claims) less reliably. Approvals are enforced by code, not by the model.
 - Voice uses Chrome's built-in speech recognition: needs internet, the tab must stay open with the screen on (no background or "Hey JARVIS" wake word), and Hinglish recognition is imperfect (try the Hindi or English setting if it mishears). Voice quality depends on the voices installed on the phone.
 - Voice mode is tested only with stubbed speech APIs, not with a real microphone on a phone. Risky actions still need a tap in the Approvals tab by design.
+- No always-on wake word: Android blocks background mic use by a browser, and an offline wake-word engine in Termux is untested and battery-heavy. Use the one-tap home-screen icon instead.

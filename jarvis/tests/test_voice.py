@@ -67,7 +67,7 @@ class UiVoiceControlsTests(unittest.TestCase):
     def test_ui_has_voice_controls_and_no_secrets(self):
         import pathlib
         html = (pathlib.Path(__file__).resolve().parent.parent / "jarvis" / "ui.html").read_text()
-        for needle in ("webkitSpeechRecognition", "speechSynthesis", "voice_lang", 'id="mic"', 'id="vmode"', "wakeLock"):
+        for needle in ("webkitSpeechRecognition", "speechSynthesis", "voice_lang", 'id="mic"', 'id="vmode"', "wakeLock", "autoVoice"):
             self.assertIn(needle, html)
 
 

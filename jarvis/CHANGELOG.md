@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1 - 2026-10-11
+- One-tap launch: `jarvis-open.sh` starts the server if needed and opens JARVIS already listening (URL flag `&voice=1`). Meant for a Termux:Widget home-screen shortcut. Not yet tested on a real phone; Chrome may still need one tap on the mic the first time.
+
 ## 0.3.0 - 2026-10-11
 - Voice: mic button, hands-free "Voice mode" (sunta hai -> kaam karta hai -> bolke jawab deta hai -> phir sunta hai), language choice Hinglish / Hindi / English. Uses the phone browser's speech recognition and text-to-speech; no extra install or key.
 - In voice mode the model is told to give at most 3 short spoken sentences, and long results go to files. Markdown and URLs are stripped before speaking.

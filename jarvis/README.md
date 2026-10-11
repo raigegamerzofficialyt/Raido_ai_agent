@@ -46,6 +46,14 @@ Apni video `workspace/inbox/` me rakho. Output `workspace/output/` me aata hai. 
 - Screen on rakho aur Chrome tab khula rakho. Voice ke liye internet chahiye.
 - Approval (delete, website allow, etc.) sirf Approvals tab me tap karke hota hai, awaaz se nahi.
 
+## Ek tap me JARVIS (home screen icon)
+Android navigation bar me apna icon nahi lagane deta, isliye home screen par icon use karo:
+1. F-Droid se **Termux:Widget** install karo.
+2. Termux me: `mkdir -p ~/.shortcuts && cp ~/Raido_ai_agent/jarvis/jarvis-open.sh ~/.shortcuts/JARVIS && chmod +x ~/.shortcuts/JARVIS`
+3. Home screen par lamba dabao > Widgets > Termux:Widget lagao > **JARVIS** chuno.
+4. Icon dabao: server chalu hoga aur JARVIS Chrome me seedha sunna shuru karega. Agar mic na khule to 🎤 ek baar dabao.
+Ye "Jarvis" bolkar jagana nahi hai. Wo abhi nahi hota (LIMITATIONS dekho).
+
 ## Skills
 `skills/*/SKILL.md` (Anthropic ke official format me: `name` + `description` frontmatter). JARVIS inhe `load_skill` tool se padhta hai. Skill sirf instructions hai; asli kaam tools karte hain.
 

@@ -48,7 +48,9 @@
 <script>
 "use strict";
 const qs = new URLSearchParams(location.hash.slice(1));
+const autoVoice = qs.get("voice") === "1";
 if (qs.get("token")) { try { localStorage.setItem("jt", qs.get("token")); } catch (e) {} history.replaceState(null, "", location.pathname); }
+if (autoVoice) history.replaceState(null, "", location.pathname);
 let TOKEN = ""; try { TOKEN = localStorage.getItem("jt") || ""; } catch (e) {}
 const TABS = ["Chat","Tasks","Approvals","Memory","Clients","Files"];
 let tab = "Chat", watching = null, chat = [];
@@ -223,6 +225,7 @@ $("vmode").onclick = () => {
 $("vlang").value = vlang;
 $("vlang").onchange = () => { vlang = $("vlang").value; try { localStorage.setItem("vl", vlang); } catch (e) {} };
 drawNav(); render(); status(); setInterval(status, 15000);
+if (autoVoice) setTimeout(() => { if (!handsFree) { handsFree = true; misses = 0; syncVoiceUI(); keepAwake(true); startListening(); } }, 400);
 </script>
 </body>
 </html>
