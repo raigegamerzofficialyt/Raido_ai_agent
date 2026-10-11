@@ -12,8 +12,10 @@ from .server import make_server
 def check(cfg) -> int:
     ok = True
     print("JARVIS self-check")
-    print(f"  Claude API key : {'set' if cfg.api_key else 'MISSING (.env me ANTHROPIC_API_KEY daalo)'}")
-    ok &= bool(cfg.api_key)
+    keyname = "GEMINI_API_KEY" if cfg.provider == "gemini" else "ANTHROPIC_API_KEY"
+    print(f"  AI provider    : {cfg.provider} (model {cfg.model})")
+    print(f"  API key        : {'set' if cfg.active_key else f'MISSING (.env me {keyname} daalo)'}")
+    ok &= bool(cfg.active_key)
     for tool in ("ffmpeg", "ffprobe"):
         found = shutil.which(tool)
         print(f"  {tool:<14} : {'found' if found else 'MISSING (Termux: pkg install ffmpeg)'}")
@@ -34,8 +36,8 @@ def main() -> int:
     print("JARVIS chal raha hai. Phone ke browser me ye link kholo:\n")
     print(f"  {url}\n")
     print("Band karne ke liye Ctrl+C. (Ye link private hai, kisi ko share mat karo.)")
-    if not cfg.api_key:
-        print("\nWARNING: ANTHROPIC_API_KEY set nahi hai - chat tab tak kaam nahi karega.")
+    if not cfg.active_key:
+        print("\nWARNING: API key set nahi hai (.env) - chat tab tak kaam nahi karega.")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

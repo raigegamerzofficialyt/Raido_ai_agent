@@ -7,3 +7,5 @@
 - Long videos can be slow/hot on a phone; heavy edits may need a PC or cloud.
 - Claude API usage is billed separately from a Claude.ai subscription (pay per token). Daily cap default 300k tokens; set JARVIS_DAILY_TOKEN_LIMIT.
 - Tested here on Linux with synthetic videos and a mocked Claude API. NOT yet tested on a real Android phone or with a live API key.
+- Gemini mode is new: tested only against a local fake server, not the real Gemini API. If the model name stops working set JARVIS_MODEL in .env. Free-tier Gemini has rate limits, and Google may use free-tier prompts to improve its products, so avoid sending private client data.
+- Skills/prompts were written for Claude; Gemini may follow the rules (approvals, no fake claims) less reliably. Approvals are enforced by code, not by the model.

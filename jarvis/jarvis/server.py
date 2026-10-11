@@ -13,6 +13,7 @@ from pathlib import Path
 from . import skills_loader
 from .agent import Agent
 from .claude_client import ClaudeClient
+from .gemini_client import GeminiClient
 from .config import Config
 from .db import DB
 from .tools import Context, ToolError, build_registry
@@ -22,12 +23,19 @@ from .tools.files import resolve_in_workspace
 UI_FILE = Path(__file__).parent / "ui.html"
 
 
+
+def make_client(cfg):
+    if cfg.provider == "gemini":
+        return GeminiClient(cfg.gemini_key, cfg.model, cfg.max_tokens)
+    return ClaudeClient(cfg.api_key, cfg.model, cfg.api_url, cfg.max_tokens)
+
+
 class App:
     def __init__(self, cfg: Config, client=None):
         self.cfg = cfg
         self.db = DB(cfg.db_path)
         self.registry = build_registry()
-        self.client = client or ClaudeClient(cfg.api_key, cfg.model, cfg.api_url, cfg.max_tokens)
+        self.client = client or make_client(cfg)
         self.agent = Agent(cfg, self.db, self.client, self.registry)
         self.ctx = Context(cfg=cfg, db=self.db)
 
@@ -107,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
         if method == "GET" and route == "status":
             import shutil
             return self._json({
-                "has_api_key": bool(app.cfg.api_key), "model": app.cfg.model,
+                "has_api_key": bool(app.cfg.active_key), "model": app.cfg.model, "provider": app.cfg.provider,
                 "ffmpeg": bool(shutil.which("ffmpeg")), "termux_api": bool(shutil.which("termux-notification")),
                 "tokens_today": db.usage_today(), "token_limit": app.cfg.daily_token_limit,
                 "busy": app.agent.lock.locked(), "tools": app.registry.names()})
@@ -115,8 +123,9 @@ class Handler(BaseHTTPRequestHandler):
             text = str(self._body().get("text", "")).strip()
             if not text:
                 raise ValueError("text empty")
-            if not app.cfg.api_key and isinstance(app.client, ClaudeClient):
-                return self._json({"error": "ANTHROPIC_API_KEY set nahi hai (.env file)."}, 400)
+            if not app.cfg.active_key and isinstance(app.client, (ClaudeClient, GeminiClient)):
+                name = "GEMINI_API_KEY" if app.cfg.provider == "gemini" else "ANTHROPIC_API_KEY"
+                return self._json({"error": f"{name} set nahi hai (.env file)."}, 400)
             if app.agent.lock.locked():
                 return self._json({"error": "JARVIS abhi ek task par kaam kar raha hai. Thoda ruko."}, 409)
             task_id = db.create_task(text)

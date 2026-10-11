@@ -22,7 +22,9 @@ Dekho `LIMITATIONS.md`. Short me: publish/send khud nahi karta, phone ko silentl
    bash setup-termux.sh
    nano .env
    ```
-   `.env` me `ANTHROPIC_API_KEY=sk-ant-...` daalo (console.anthropic.com se; **ye paid API hai**, Claude subscription se alag).
+   `.env` me **ek** key daalo:
+   - Gemini: `GEMINI_API_KEY=...` (aistudio.google.com se; free tier hota hai, par limits aur privacy rules Google ke hain)
+   - ya Claude: `ANTHROPIC_API_KEY=sk-ant-...` (console.anthropic.com; **paid**, Claude subscription se alag)
 3. Check: `python -m jarvis check`
 4. Chalao: `python -m jarvis` -> jo link dikhe use phone ke browser me kholo.
 

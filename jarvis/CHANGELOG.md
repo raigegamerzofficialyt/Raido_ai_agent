@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0 - 2026-10-11
+- Gemini support: set GEMINI_API_KEY (auto-selected if no Anthropic key). Adapter translates Claude-style tool calls to Gemini generateContent; default model alias `gemini-flash-latest` (change with JARVIS_MODEL).
+- 11 new tests (translation, retries, full tool round-trip against a local fake Gemini server). NOT yet tested against the real Gemini API.
+
 ## 0.1.0 - 2026-10-11
 - Stdlib-only Python server + phone web UI (no pip installs; works on Termux).
 - Claude Messages API client with tool-calling loop, step and daily token limits.
