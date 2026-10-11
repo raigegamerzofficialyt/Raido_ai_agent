@@ -120,7 +120,8 @@ class Handler(BaseHTTPRequestHandler):
                 "tokens_today": db.usage_today(), "token_limit": app.cfg.daily_token_limit,
                 "busy": app.agent.lock.locked(), "tools": app.registry.names()})
         if method == "POST" and route == "chat":
-            text = str(self._body().get("text", "")).strip()
+            body = self._body()
+            text = str(body.get("text", "")).strip()
             if not text:
                 raise ValueError("text empty")
             if not app.cfg.active_key and isinstance(app.client, (ClaudeClient, GeminiClient)):
@@ -128,8 +129,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": f"{name} set nahi hai (.env file)."}, 400)
             if app.agent.lock.locked():
                 return self._json({"error": "JARVIS abhi ek task par kaam kar raha hai. Thoda ruko."}, 409)
+            voice = str(body.get("voice_lang", "")).lower() if body.get("voice") else None
+            if voice is not None and voice not in ("hinglish", "hindi", "english"):
+                voice = "hinglish"
             task_id = db.create_task(text)
-            threading.Thread(target=app.agent.run, args=(text, task_id), daemon=True).start()
+            threading.Thread(target=app.agent.run, args=(text, task_id, voice), daemon=True).start()
             return self._json({"task_id": task_id})
         if method == "GET" and route == "tasks":
             return self._json(db.list_tasks())

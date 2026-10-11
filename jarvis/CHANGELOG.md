@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 - 2026-10-11
+- Voice: mic button, hands-free "Voice mode" (sunta hai -> kaam karta hai -> bolke jawab deta hai -> phir sunta hai), language choice Hinglish / Hindi / English. Uses the phone browser's speech recognition and text-to-speech; no extra install or key.
+- In voice mode the model is told to give at most 3 short spoken sentences, and long results go to files. Markdown and URLs are stripped before speaking.
+- Approvals stay tap-only (never by voice). Screen stays awake while Voice mode is on.
+- 4 new tests (voice prompt, endpoint, UI controls); 70 total. UI voice loop also smoke-tested in headless Chromium with stubbed speech APIs. NOT yet tested with a real microphone on the phone.
+
 ## 0.2.0 - 2026-10-11
 - Gemini support: set GEMINI_API_KEY (auto-selected if no Anthropic key). Adapter translates Claude-style tool calls to Gemini generateContent; default model alias `gemini-flash-latest` (change with JARVIS_MODEL).
 - 11 new tests (translation, retries, full tool round-trip against a local fake Gemini server). NOT yet tested against the real Gemini API.

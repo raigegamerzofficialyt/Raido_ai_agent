@@ -17,8 +17,8 @@ Dekho `LIMITATIONS.md`. Short me: publish/send khud nahi karta, phone ko silentl
 2. Termux me:
    ```
    pkg install git
-   git clone https://github.com/raigegamerzofficialyt/Raido_ai_agent
-   cd Raido_ai_agent/jarvis
+   git clone <TUMHARI-REPO-URL> jarvis
+   cd jarvis
    bash setup-termux.sh
    nano .env
    ```
@@ -36,6 +36,15 @@ Dekho `LIMITATIONS.md`. Short me: publish/send khud nahi karta, phone ko silentl
 - "JARVIS, inbox/a.mp4 ko Shorts size me edit ke liye ready kar"
 
 Apni video `workspace/inbox/` me rakho. Output `workspace/output/` me aata hai. Originals kabhi change nahi hote.
+
+## Voice (bina likhe)
+1. Termux me update lo aur server restart karo: `cd ~/Raido_ai_agent && git pull`, phir `pkill -f "python -m jarvis"` aur `cd jarvis && python -m jarvis > jarvis.log 2>&1 &`.
+2. Chrome me JARVIS kholo. Chat ke neeche **Voice mode: OFF** button dabao (ya sirf 🎤).
+3. Pehli baar Chrome mic permission puchega: **Allow** karo.
+4. Bolo, jaise "ek YouTube Short ka idea research karo". JARVIS kaam karke bolke jawab dega aur phir khud sunna shuru karega. Band karne ke liye button dobara dabao.
+5. Bhasha dropdown se Hinglish / हिन्दी / English chuno. Agar galat sunta hai to Hindi ya English try karo.
+- Screen on rakho aur Chrome tab khula rakho. Voice ke liye internet chahiye.
+- Approval (delete, website allow, etc.) sirf Approvals tab me tap karke hota hai, awaaz se nahi.
 
 ## Skills
 `skills/*/SKILL.md` (Anthropic ke official format me: `name` + `description` frontmatter). JARVIS inhe `load_skill` tool se padhta hai. Skill sirf instructions hai; asli kaam tools karte hain.
