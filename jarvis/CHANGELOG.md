@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 - 2026-10-12
+- Termux voice friend mode (no browser): `python -m jarvis talk [--once] [--lang ...]`, `jarvis-friend.sh` (notification "Bolo" button), `decide` for Haan/Nahi permission buttons. Uses termux-speech-to-text / termux-tts-speak. 5 new tests (75 total) with fake Termux commands; not run on a real phone.
+- NEW `android/`: native Android assistant app (Kotlin) that can be set as the phone's Digital assistant. Gemini brain, voice in/out, confirm-first phone actions. NOT compiled or run anywhere yet (no Android SDK here); built by GitHub Actions (`.github/workflows/android-apk.yml`) into a Release APK.
+
 ## 0.3.1 - 2026-10-11
 - One-tap launch: `jarvis-open.sh` starts the server if needed and opens JARVIS already listening (URL flag `&voice=1`). Meant for a Termux:Widget home-screen shortcut. Not yet tested on a real phone; Chrome may still need one tap on the mic the first time.
 

@@ -41,6 +41,7 @@ class Config:
     host: str = "127.0.0.1"
     port: int = 8765
     token: str = ""
+    tts_lang: str = ""  # optional termux-tts-speak language, e.g. hi or en
     ffmpeg_timeout: int = 900
     approved_sites: list[str] = field(default_factory=list)
     extra: dict[str, str] = field(default_factory=dict)  # optional keys, e.g. BRAVE_API_KEY
@@ -106,6 +107,7 @@ def load_config(root: Path | None = None, env: dict[str, str] | None = None) -> 
     cfg.daily_token_limit = int(merged.get("JARVIS_DAILY_TOKEN_LIMIT", cfg.daily_token_limit))
     cfg.max_steps = int(merged.get("JARVIS_MAX_STEPS", cfg.max_steps))
     cfg.token = merged.get("JARVIS_TOKEN", "")
+    cfg.tts_lang = merged.get("JARVIS_TTS_LANG", "").strip()
     cfg.extra = {k: merged[k] for k in ("BRAVE_API_KEY", "BRAVE_URL") if k in merged}
     cfg.ensure_dirs()
 

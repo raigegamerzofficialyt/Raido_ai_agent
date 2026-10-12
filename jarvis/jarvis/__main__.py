@@ -1,6 +1,7 @@
-"""Entry point:  python -m jarvis  (starts the phone UI)  |  python -m jarvis check  (self-check)."""
+"""Entry point:  python -m jarvis  (phone UI)  |  check  |  talk [--once] [--lang hinglish|hindi|english]  |  friend  |  decide N yes|no"""
 from __future__ import annotations
 
+import shlex
 import shutil
 import sys
 
@@ -31,6 +32,23 @@ def main() -> int:
     cfg = load_config()
     if len(sys.argv) > 1 and sys.argv[1] == "check":
         return check(cfg)
+    if len(sys.argv) > 1 and sys.argv[1] == "talk":
+        from .talk import run_talk
+        lang = sys.argv[sys.argv.index("--lang") + 1] if "--lang" in sys.argv[:-1] else "hinglish"
+        return run_talk(cfg, once="--once" in sys.argv, voice_lang=lang)
+    if len(sys.argv) > 3 and sys.argv[1] == "decide":
+        from .talk import Talker, decide
+        t = Talker(f"http://{cfg.host}:{cfg.port}", cfg.token)
+        print(decide(t, int(sys.argv[2]), sys.argv[3].lower() in ("yes", "y", "haan")))
+        return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "friend":
+        from .talk import Talker
+        py = shlex.quote(sys.executable)
+        Talker(f"http://{cfg.host}:{cfg.port}", cfg.token).notify(
+            "jarvis-friend", "JARVIS", "Bolne ke liye 'Bolo' dabao", ongoing=True,
+            buttons=[("Bolo", f"cd {shlex.quote(str(cfg.root))} && {py} -m jarvis talk --once")])
+        print("Notification laga di. Notification shade me 'Bolo' dabao.")
+        return 0
     httpd = make_server(cfg)
     url = f"http://{cfg.host}:{cfg.port}/#token={cfg.token}"
     print("JARVIS chal raha hai. Phone ke browser me ye link kholo:\n")
