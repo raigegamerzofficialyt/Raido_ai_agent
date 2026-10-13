@@ -37,6 +37,20 @@ USER MEMORY (user-controlled; use it, and save new durable preferences with reme
 """
 
 
+VOICE_NOTE = """
+VOICE MODE IS ON: the user is talking to you by voice and your reply will be read aloud by text-to-speech.
+- Answer in at most 3 short, natural spoken sentences. No markdown, bullets, emoji, tables, code or URLs.
+- Language: {lang_rule}
+- Long results (scripts, research, plans) go into a file with your tools; just say in one sentence what you did and where it is saved.
+- If an action needs approval, say briefly that it is waiting in the Approvals tab. Never say you did something that a tool result has not confirmed.
+"""
+VOICE_LANGS = {
+    "hinglish": "Hinglish (Hindi written in Roman letters), like the user speaks.",
+    "hindi": "Hindi written in Devanagari script only.",
+    "english": "simple, clear English.",
+}
+
+
 class Agent:
     def __init__(self, cfg, db, client, registry: Registry):
         self.cfg, self.db, self.client, self.registry = cfg, db, client, registry
@@ -44,14 +58,17 @@ class Agent:
         self.lock = threading.Lock()
 
     # ------------------------------------------------------------ prompt
-    def system_prompt(self) -> str:
+    def system_prompt(self, voice: str | None = None) -> str:
         skills = skills_loader.discover(self.cfg.skills_dir)
         skill_text = "\n".join(f"- {s['name']}: {s['description']}" for s in skills.values()) or "(none)"
         mem = "\n".join(f"- {m['key']}: {m['value']}" for m in self.db.all_memory()) or "(empty)"
-        return SYSTEM_TEMPLATE.format(skills=skill_text, memory=mem)
+        prompt = SYSTEM_TEMPLATE.format(skills=skill_text, memory=mem)
+        if voice:
+            prompt += VOICE_NOTE.format(lang_rule=VOICE_LANGS.get(voice, VOICE_LANGS["hinglish"]))
+        return prompt
 
     # -------------------------------------------------------------- run
-    def run(self, user_text: str, task_id: int | None = None) -> dict[str, Any]:
+    def run(self, user_text: str, task_id: int | None = None, voice: str | None = None) -> dict[str, Any]:
         """Run one user request to completion. Returns {task_id, status, reply}."""
         with self.lock:
             if task_id is None:
@@ -65,7 +82,7 @@ class Agent:
             pending_before = len(self.db.list_approvals("pending"))
             reply, status = "", "done"
             try:
-                reply = self._loop(task_id, turn, messages)
+                reply = self._loop(task_id, turn, messages, voice)
             except ClaudeError as e:
                 status, reply = "failed", f"Claude se baat nahi ho payi: {e}"
                 self.db.log_event(task_id, "error", str(e))
@@ -88,8 +105,8 @@ class Agent:
                     for i in ids]})
         return history
 
-    def _loop(self, task_id: int, turn: int, messages: list[dict]) -> str:
-        system = self.system_prompt()
+    def _loop(self, task_id: int, turn: int, messages: list[dict], voice: str | None = None) -> str:
+        system = self.system_prompt(voice)
         schemas = self.registry.api_schemas()
         for _ in range(self.cfg.max_steps):
             if self.db.usage_today() >= self.cfg.daily_token_limit:

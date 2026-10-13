@@ -28,17 +28,29 @@
   textarea { resize:none; height:46px; }
   form button { padding:0 18px; border-radius:10px; border:0; background:var(--acc); color:#04141f; font-weight:600; font:inherit; }
   a { color:var(--acc); }
+  #voice { display:flex; gap:8px; align-items:center; padding:6px 10px; border-top:1px solid var(--line); font-size:13px; }
+  #voice select { flex:none; padding:6px; height:auto; }
+  #voice button.act { margin:0; padding:6px 10px; } #voice button.on { background:var(--ok); color:#06130c; border-color:var(--ok); }
+  #vstat { color:var(--dim); flex:1; min-width:0; }
+  #mic { flex:none; width:52px; height:52px; border-radius:50%; border:0; background:var(--card); border:1px solid var(--line); font-size:24px; padding:0; }
+  #mic.live { background:var(--bad); animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { transform:scale(1.1); } }
 </style>
 </head>
 <body>
 <header><b>JARVIS</b><span id="stat">...</span></header>
 <nav id="nav"></nav>
 <main id="main"></main>
-<form id="form"><textarea id="box" placeholder="JARVIS se kuch bhi kaho (Hinglish/English)..." enterkeyhint="send"></textarea><button type="submit">Bhejo</button></form>
+<div id="voice"><button type="button" id="vmode" class="act">Voice mode: OFF</button>
+<select id="vlang" aria-label="Voice language"><option value="hinglish">Hinglish</option><option value="hindi">हिन्दी</option><option value="english">English</option></select>
+<span id="vstat"></span></div>
+<form id="form"><button type="button" id="mic" aria-label="Bolo">🎤</button><textarea id="box" placeholder="Mic dabao aur bolo, ya yahan likho..." enterkeyhint="send"></textarea><button type="submit">Bhejo</button></form>
 <script>
 "use strict";
 const qs = new URLSearchParams(location.hash.slice(1));
+const autoVoice = qs.get("voice") === "1";
 if (qs.get("token")) { try { localStorage.setItem("jt", qs.get("token")); } catch (e) {} history.replaceState(null, "", location.pathname); }
+if (autoVoice) history.replaceState(null, "", location.pathname);
 let TOKEN = ""; try { TOKEN = localStorage.getItem("jt") || ""; } catch (e) {}
 const TABS = ["Chat","Tasks","Approvals","Memory","Clients","Files"];
 let tab = "Chat", watching = null, chat = [];
@@ -111,19 +123,109 @@ async function watch(id) {
     const t = await api("tasks/" + id).catch(() => null);
     if (t && t.status !== "running") {
       watching = null;
-      chat.push({ who: "bot", text: (t.reply || "(no reply)") + (t.status === "waiting_approval" ? "\n\n[Approvals tab me confirm karo]" : "") });
-      if (tab === "Chat") render(); status(); return;
+      const out = (t.reply || "(no reply)") + (t.status === "waiting_approval" ? "\n\n[Approvals tab me confirm karo]" : "");
+      chat.push({ who: "bot", text: out });
+      if (tab === "Chat") render(); status(); return out;
     }
     await new Promise(r => setTimeout(r, 2000));
   }
 }
-document.getElementById("form").onsubmit = async e => {
-  e.preventDefault(); const box = document.getElementById("box"); const text = box.value.trim(); if (!text) return;
-  box.value = ""; chat.push({ who: "me", text }); tab = "Chat"; drawNav(); render();
-  try { const r = await api("chat", { method: "POST", body: JSON.stringify({ text }) }); chat.push({ who: "bot", text: "(kaam chal raha hai...)" }); render(); const idx = chat.length - 1; await watch(r.task_id); chat.splice(idx, 1); render(); }
-  catch (err) { chat.push({ who: "bot", text: "Error: " + err.message }); render(); }
+// ---------------------------------------------------------------- chat + voice
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const RECLANG = { hinglish: "hi-IN", hindi: "hi-IN", english: "en-IN" };
+const TTSLANG = { hinglish: "en-IN", hindi: "hi-IN", english: "en-IN" };
+let vlang = "hinglish"; try { vlang = localStorage.getItem("vl") || "hinglish"; } catch (e) {}
+let handsFree = false, rec = null, listening = false, misses = 0, wakeLock = null;
+const $ = id => document.getElementById(id);
+function vstat(t) { $("vstat").textContent = t; }
+function syncVoiceUI() {
+  $("vmode").textContent = "Voice mode: " + (handsFree ? "ON" : "OFF"); $("vmode").classList.toggle("on", handsFree);
+  $("mic").classList.toggle("live", listening);
+}
+async function keepAwake(on) {
+  try { if (on && navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); else if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => { if (handsFree && document.visibilityState === "visible") keepAwake(true); });
+function cleanForSpeech(t) {
+  return t.replace(/```[\s\S]*?```/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/https?:\/\/\S+/g, " link ")
+    .replace(/[*_#`>|~\[\]]/g, " ").replace(/\s+/g, " ").trim();
+}
+function speak(text, done) {
+  const synth = window.speechSynthesis, clean = cleanForSpeech(text);
+  if (!synth || !clean) { if (done) done(); return; }
+  synth.cancel();
+  const sentences = clean.match(/[^.!?।]+[.!?।]*/g) || [clean], chunks = []; let cur = "";
+  for (const p of sentences) { if (cur && (cur + p).length > 180) { chunks.push(cur); cur = p; } else cur += p; }
+  if (cur) chunks.push(cur);
+  const lang = TTSLANG[vlang], voices = synth.getVoices();
+  const v = voices.find(x => x.lang.replace("_", "-") === lang) || voices.find(x => x.lang.toLowerCase().startsWith(lang.slice(0, 2)));
+  vstat("Bol raha hoon...");
+  chunks.forEach((c, i) => {
+    const u = new SpeechSynthesisUtterance(c.trim()); u.lang = lang; if (v) u.voice = v;
+    if (i === chunks.length - 1) u.onend = u.onerror = () => { if (done) done(); };
+    synth.speak(u);
+  });
+}
+function stopVoice() {
+  handsFree = false; misses = 0;
+  try { if (rec) rec.abort(); } catch (e) {}
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  keepAwake(false); listening = false; syncVoiceUI();
+}
+function startListening() {
+  if (!SR) { vstat("Is browser me voice input nahi hai. Chrome use karo."); handsFree = false; syncVoiceUI(); return; }
+  if (listening) return;
+  rec = new SR(); rec.lang = RECLANG[vlang]; rec.interimResults = true; rec.continuous = false;
+  let finalText = "", err = "";
+  rec.onstart = () => { listening = true; syncVoiceUI(); vstat("Sun raha hoon... boliye"); };
+  rec.onresult = e => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) { const r = e.results[i]; if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript; }
+    $("box").value = (finalText + interim).trim();
+  };
+  rec.onerror = e => { err = e.error || "error"; };
+  rec.onend = () => {
+    listening = false; syncVoiceUI();
+    if (finalText.trim()) { misses = 0; vstat(""); sendText(finalText, true); return; }
+    $("box").value = "";
+    if (err === "not-allowed" || err === "service-not-allowed") { vstat("Mic permission do: Chrome ka lock icon > Permissions > Microphone > Allow."); stopVoice(); }
+    else if (err === "audio-capture") { vstat("Mic nahi mila."); stopVoice(); }
+    else if (err === "network") { vstat("Voice ke liye internet chahiye."); stopVoice(); }
+    else if (err === "aborted") { /* stopped by user */ }
+    else if (handsFree && ++misses < 3) setTimeout(startListening, 300);
+    else { vstat("Kuch sunai nahi diya. Mic dabake phir bolo."); stopVoice(); }
+  };
+  try { rec.start(); } catch (e) { vstat("Mic start nahi hua, phir try karo."); }
+}
+async function sendText(text, fromVoice) {
+  text = text.trim(); if (!text) return;
+  $("box").value = ""; chat.push({ who: "me", text }); tab = "Chat"; drawNav(); render();
+  const voice = !!(fromVoice || handsFree); let reply = null;
+  try {
+    const r = await api("chat", { method: "POST", body: JSON.stringify({ text, voice, voice_lang: vlang }) });
+    chat.push({ who: "bot", text: "(kaam chal raha hai...)" }); render(); const idx = chat.length - 1;
+    if (voice) vstat("Soch raha hoon...");
+    reply = await watch(r.task_id); chat.splice(idx, 1); render();
+  } catch (err) {
+    chat.push({ who: "bot", text: "Error: " + err.message }); render();
+    if (voice) { stopVoice(); speak("Error aaya. " + err.message, null); }
+    return;
+  }
+  if (voice && reply) speak(reply, () => { if (handsFree) startListening(); else vstat(""); });
+}
+$("form").onsubmit = e => { e.preventDefault(); sendText($("box").value, false); };
+$("mic").onclick = () => {
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (listening) { try { rec.stop(); } catch (e) {} } else { misses = 0; startListening(); }
 };
+$("vmode").onclick = () => {
+  if (handsFree) { stopVoice(); vstat(""); return; }
+  handsFree = true; misses = 0; syncVoiceUI(); keepAwake(true); startListening();
+};
+$("vlang").value = vlang;
+$("vlang").onchange = () => { vlang = $("vlang").value; try { localStorage.setItem("vl", vlang); } catch (e) {} };
 drawNav(); render(); status(); setInterval(status, 15000);
+if (autoVoice) setTimeout(() => { if (!handsFree) { handsFree = true; misses = 0; syncVoiceUI(); keepAwake(true); startListening(); } }, 400);
 </script>
 </body>
 </html>
